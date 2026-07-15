@@ -1,0 +1,8 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  CsvToJsonS3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "csv-to-json-do12388"
+      #NotificationConfiguration --> Investigate for LAMBDA trigger
