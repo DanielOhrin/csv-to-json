@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName:
+        Fn::Sub: ${AWS::StackName}-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: AllowLambdaService
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cfn-bucket-cloudformationbucket-o3dzy1kiesd4
+        S3Key: 2686525512bb1becc7e5c5a87b8a0e5e
+      Handler: index.handler
+      Runtime: nodejs24.x
+      Role:
+        Fn::GetAtt:
+        - LambdaExecutionRole
+        - Arn
+      FunctionName: csv-to-json
+      Description: Converts a csv object to json
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName:
+        Ref: LambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn:
+        Fn::Sub: arn:aws:s3:::*
+      SourceAccount:
+        Ref: AWS::AccountId
+  CsvToJsonBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LambdaInvokePermission
+    Metadata:
+      guard:
+        SuppressedRules:
+        - S3_BUCKET_VERSIONING_ENABLED
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Suspended
+      NotificationConfiguration:
+        LambdaConfigurations:
+        - Event: s3:ObjectCreated:Put
+          Function:
+            Fn::GetAtt:
+            - LambdaFunction
+            - Arn
+          Filter:
+            S3Key:
+              Rules:
+              - Name: prefix
+                Value: incoming/
+  PolicyForBucketAccess:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName:
+        Fn::Sub: ${AWS::StackName}-lamda-policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: S3Access
+          Effect: Allow
+          Action:
+          - s3:ListBucket
+          - s3:GetObject
+          - s3:PutObject
+          Resource:
+          - Fn::GetAtt:
+            - CsvToJsonBucket
+            - Arn
+          - Fn::Sub: ${CsvToJsonBucket.Arn}/*
+      Roles:
+      - Ref: LambdaExecutionRole
