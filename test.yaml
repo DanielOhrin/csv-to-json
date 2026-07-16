@@ -50,8 +50,6 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: "AES256"
-      VersioningConfiguration:
-        Status: "Suspended"
       NotificationConfiguration:
         LambdaConfigurations:
           - Event: s3:ObjectCreated:Put # Triggers only on PUT uploads
