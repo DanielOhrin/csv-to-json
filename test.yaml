@@ -1,8 +1,49 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 Resources:
-  CsvToJsonS3Bucket:
+  CsvToJsonBucket:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: "csv-to-json-do12388"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "AES256"
+      VersioningConfiguration:
+        Status: "Suspended"
       #NotificationConfiguration --> Investigate for LAMBDA trigger
+  LambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "AllowLambdaService"
+            Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  PolicyForBucketAccess:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub "${AWS::StackName}-lamda-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "S3Access"
+            Effect: "Allow"
+            Action:
+              - "s3:ListBucket"
+              - "s3:GetObject"
+              - "s3:PutObject"
+            Resource: !Sub "${CsvToJsonBucket.Arn}/*"
+      Roles:
+        - !Ref LambdaExecutionRole
